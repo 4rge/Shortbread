@@ -150,32 +150,27 @@
             const shortUrl = `https://4rge.github.io/Shortbread`;
             shortenedLinkDiv.innerHTML = `<a href="${shortUrl}" target="_blank">${shortUrl}</a>`;
             urlInput.value = '';
-
-            // Create a file and download it for sharing
-            createCookieSettingFile(mappings);
         }
 
-        // Create a cookie setting file as a downloadable link
-        function createCookieSettingFile(mappings) {
-            const content = `
-                (function() {
-                    const mappings = ${JSON.stringify(mappings)};
-                    for (const [key, value] of Object.entries(mappings)) {
-                        document.cookie = key + "=" + value + "; path=/; SameSite=Lax";
-                    }
-                    alert("Cookies have been set!");
-                })();
-            `;
-            const blob = new Blob([content], { type: 'application/javascript' });
+        // Function to export URLs in JSON format
+        function exportUrls() {
+            const cookieValue = getCookie('urlMappings');
+            if (!cookieValue) {
+                alert('No URL mappings available to export.');
+                return;
+            }
+
+            const mappings = JSON.parse(cookieValue); // Parse existing URL mappings
+            const blob = new Blob([JSON.stringify(mappings, null, 2)], { type: 'application/json' }); // Export as JSON
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = 'set_cookies.js';
+            link.download = 'url_mappings.json'; // Name of the exported file
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
-        // Handle URL import from JSON
+        // Handle URL import from a JSON file
         function handleImportUrls(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -183,16 +178,17 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const importedMappings = JSON.parse(e.target.result);
+                    const importedMappings = JSON.parse(e.target.result); // Parse the JSON content
+                    // Iterate through the imported mappings and set cookies
                     for (const [key, value] of Object.entries(importedMappings)) {
-                        document.cookie = `${key}=${value}; path=/; SameSite=Lax`;
+                        document.cookie = `${key}=${value}; path=/; SameSite=Lax`; // Set each mapping as a cookie
                     }
                     alert('URLs imported successfully!');
                 } catch (error) {
                     alert('Error importing URLs: Invalid file format.');
                 }
             }
-            reader.readAsText(file);
+            reader.readAsText(file); // Read the file content as text
         }
 
         // Event listeners for handling actions
