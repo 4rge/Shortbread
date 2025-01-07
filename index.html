@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Themed URL Shortener</title>
+    <title>Simple URL Shortener</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -29,7 +29,7 @@
             text-align: center;
         }
         input[type="text"] {
-            width: 80%;
+            width: 100%;
             padding: 12px;
             margin: 10px 0;
             border: none;
@@ -88,6 +88,9 @@
         const shortenedLinkDiv = document.getElementById('shortened-link');
         const errorMessageDiv = document.getElementById('error-message');
 
+        // Total number of URLs stored
+        let urlCounter = 0;
+
         // Function to create cookies
         function setCookie(name, value, days) {
             const d = new Date();
@@ -96,7 +99,7 @@
             document.cookie = name + "=" + value + ";" + expires + ";path=/";
         }
 
-        // Function to read cookies
+        // Function to read cookie
         function getCookie(name) {
             const nameEQ = name + "=";
             const ca = document.cookie.split(';');
@@ -106,16 +109,6 @@
                 if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
             }
             return null;
-        }
-
-        // Function to generate a random short code
-        function generateShortCode(length) {
-            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            let result = '';
-            for (let i = 0; i < length; i++) {
-                result += characters.charAt(Math.floor(Math.random() * characters.length));
-            }
-            return result;
         }
 
         // Function to handle URL shortening
@@ -128,19 +121,21 @@
             }
             errorMessageDiv.textContent = '';
 
-            const shortCode = generateShortCode(6);
+            // Generate a unique identifier for each URL
+            const urlId = `url_${urlCounter++}`;
             const cookieValue = getCookie('urlMappings') || '';
             const mappings = cookieValue ? JSON.parse(cookieValue) : {};
-            mappings[shortCode] = url;
+            mappings[urlId] = url;
 
             // Set the updated mappings in cookies
             setCookie('urlMappings', JSON.stringify(mappings), 30); // Store for 30 days
 
-            const shortUrl = window.location.href + shortCode;
+            // Show the result URL (it will be a fixed URL)
+            const shortUrl = `https://4rge.github.io/shortbread`;
             shortenedLinkDiv.innerHTML = `<a href="${shortUrl}" target="_blank">${shortUrl}</a>`;
             urlInput.value = '';
         }
-        
+
         // Simple URL validation
         function isValidUrl(url) {
             const regex = /^(ftp|http|https):\/\/[^ "]+$/;
@@ -150,20 +145,20 @@
         // Event listener for button click
         shortenButton.addEventListener('click', handleShortenUrl);
 
-        // Function to handle redirects
-        function redirectIfCodeExists() {
-            const path = window.location.pathname;
-            const shortCode = path.substring(path.lastIndexOf('/') + 1);
+        // Function to handle redirection logic
+        function redirectUser() {
             const cookieValue = getCookie('urlMappings');
             const mappings = cookieValue ? JSON.parse(cookieValue) : {};
-            
-            if (mappings[shortCode]) {
-                window.location.href = mappings[shortCode];
+            const urlArray = Object.values(mappings);
+
+            // Automatically redirect to the most recent URL if any exists
+            if (urlArray.length > 0) {
+                window.location.href = urlArray[urlArray.length - 1]; // Redirect to the latest stored URL
             }
         }
 
-        // Redirect user if a short code is present in the URL
-        redirectIfCodeExists();
+        // Check for redirection when loading the page
+        redirectUser();
     </script>
 </body>
 </html>
