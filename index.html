@@ -105,10 +105,10 @@
             const d = new Date();
             d.setTime(d.getTime() + (minutes * 60 * 1000)); // Convert minutes to milliseconds
             const expires = "expires=" + d.toUTCString();
-            document.cookie = name + "=" + value + ";" + expires + ";path=/";
+            document.cookie = name + "=" + value + ";" + expires + ";path=/"; // Ensure path is set to root
         }
 
-        // Function to read cookie
+        // Function to read cookies
         function getCookie(name) {
             const nameEQ = name + "=";
             const ca = document.cookie.split(';');
@@ -166,9 +166,9 @@
                 if (userResponse) {
                     window.location.href = latestUrl; // Redirect to the latest stored URL
                 } else {
-                    // Remove the associated cookie
+                    alert('You have opted not to redirect.');  // Let the user know
+                    // Remove the associated cookie cleanly
                     deleteCookie('urlMappings');
-                    alert('URL has not been redirected and the associated cookie has been removed.');
                 }
             }
         }
@@ -178,7 +178,7 @@
             document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"; // Set a past expiration date
         }
 
-        // Event listener for the button click
+        // Event listener for button click
         shortenButton.addEventListener('click', handleShortenUrl);
 
         // Check for redirection when loading the page
