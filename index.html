@@ -86,9 +86,6 @@
             <option value="72">72 Hours</option>
         </select>
         <button id="shorten-button">Shorten URL</button>
-        
-        <input type="file" id="import-file" style="display:none;" accept=".json" />
-        <button id="import-button">Import Shortened URLs</button>
         <div id="shortened-link"></div>
         <div class="error" id="error-message"></div>
     </div>
@@ -99,17 +96,19 @@
         const shortenedLinkDiv = document.getElementById('shortened-link');
         const errorMessageDiv = document.getElementById('error-message');
         const expirationSelect = document.getElementById('expiration-time');
-        const importFileInput = document.getElementById('import-file');
 
-        // Function to set cookies
+        // Total number of URLs stored
+        let urlCounter = 0;
+
+        // Function to create cookies
         function setCookie(name, value, minutes) {
             const d = new Date();
-            d.setTime(d.getTime() + (minutes * 60 * 1000));
+            d.setTime(d.getTime() + (minutes * 60 * 1000)); // Convert minutes to milliseconds
             const expires = "expires=" + d.toUTCString();
-            document.cookie = name + "=" + value + ";" + expires + ";path=/";
+            document.cookie = name + "=" + value + ";" + expires + ";path=/"; // Ensure path is set to root
         }
 
-        // Function to get cookies
+        // Function to read cookies
         function getCookie(name) {
             const nameEQ = name + "=";
             const ca = document.cookie.split(';');
@@ -121,13 +120,7 @@
             return null;
         }
 
-        // Function to validate URL
-        function isValidUrl(url) {
-            const regex = /^(ftp|http|https):\/\/[^ "]+$/;
-            return regex.test(url);
-        }
-
-        // Handle URL shortening
+        // Function to handle URL shortening
         function handleShortenUrl() {
             const url = urlInput.value.trim();
             const expirationTime = parseInt(expirationSelect.value);
@@ -138,65 +131,58 @@
             }
             errorMessageDiv.textContent = '';
 
-            const urlId = `url_${Date.now()}`; // Generate a unique ID based on the timestamp
+            // Generate a unique identifier for each URL
+            const urlId = `url_${urlCounter++}`;
             const cookieValue = getCookie('urlMappings') || '';
             const mappings = cookieValue ? JSON.parse(cookieValue) : {};
             mappings[urlId] = url;
 
             // Set the updated mappings in cookies
-            setCookie('urlMappings', JSON.stringify(mappings), expirationTime);
+            setCookie('urlMappings', JSON.stringify(mappings), expirationTime); // Use the specified expiration time
 
-            // Show the result URL (fixed URL for demonstration purposes)
+            // Show the result URL (it will be a fixed URL)
             const shortUrl = `https://4rge.github.io/Shortbread`;
             shortenedLinkDiv.innerHTML = `<a href="${shortUrl}" target="_blank">${shortUrl}</a>`;
             urlInput.value = '';
         }
 
-        // Function to export URLs in JSON format
-        function exportUrls() {
-            const cookieValue = getCookie('urlMappings');
-            if (!cookieValue) {
-                alert('No URL mappings available to export.');
-                return;
-            }
-
-            const mappings = JSON.parse(cookieValue); // Parse existing URL mappings
-            const blob = new Blob([JSON.stringify(mappings, null, 2)], { type: 'application/json' }); // Export as JSON
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'url_mappings.json'; // Name of the exported file
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        // Simple URL validation
+        function isValidUrl(url) {
+            const regex = /^(ftp|http|https):\/\/[^ "]+$/;
+            return regex.test(url);
         }
 
-        // Handle URL import from a JSON file
-        function handleImportUrls(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        // Function to handle redirection logic
+        function redirectUser() {
+            const cookieValue = getCookie('urlMappings');
+            const mappings = cookieValue ? JSON.parse(cookieValue) : {};
+            const urlArray = Object.values(mappings);
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedMappings = JSON.parse(e.target.result); // Parse the JSON content
-                    // Iterate through the imported mappings and set cookies
-                    for (const [key, value] of Object.entries(importedMappings)) {
-                        document.cookie = `${key}=${value}; path=/; SameSite=Lax`; // Set each mapping as a cookie
-                    }
-                    alert('URLs imported successfully!');
-                } catch (error) {
-                    alert('Error importing URLs: Invalid file format.');
+            // Automatically redirect to the most recent URL if any exists
+            if (urlArray.length > 0) {
+                const latestUrl = urlArray[urlArray.length - 1];
+                const userResponse = confirm(`Do you want to redirect to ${latestUrl}?`);
+
+                if (userResponse) {
+                    window.location.href = latestUrl; // Redirect to the latest stored URL
+                } else {
+                    alert('You have opted not to redirect.');  // Let the user know
+                    // Remove the associated cookie cleanly
+                    deleteCookie('urlMappings');
                 }
             }
-            reader.readAsText(file); // Read the file content as text
         }
 
-        // Event listeners for handling actions
+        // Function to delete cookie
+        function deleteCookie(name) {
+            document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"; // Set a past expiration date
+        }
+
+        // Event listener for button click
         shortenButton.addEventListener('click', handleShortenUrl);
-        document.getElementById('import-button').addEventListener('click', function() {
-            importFileInput.click(); // Open file selection dialog
-        });
-        importFileInput.addEventListener('change', handleImportUrls);
+
+        // Check for redirection when loading the page
+        redirectUser();
     </script>
 </body>
 </html>
