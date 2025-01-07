@@ -28,7 +28,7 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             text-align: center;
         }
-        input[type="text"] {
+        input[type="text"], input[type="number"] {
             width: 100%;
             padding: 12px;
             margin: 10px 0;
@@ -38,7 +38,7 @@
             color: #F1F1F1;
             font-size: 16px;
         }
-        input[type="text"]:focus {
+        input[type="text"]:focus, input[type="number"]:focus {
             outline: none;
             background-color: #545454;
         }
@@ -77,7 +77,10 @@
     <div class="container">
         <h1>URL Shortener</h1>
         <input type="text" id="url-input" placeholder="Enter your URL here" />
+        <input type="text" id="redirect-input" placeholder="Enter redirect URL here" />
+        <input type="number" id="cookie-expiration" placeholder="Expiration in hours (up to 72)" min="1" max="72" />
         <button id="shorten-button">Shorten URL</button>
+        <button id="clear-cookies-button">Clear All Cookies</button>
         <div id="shortened-link"></div>
         <div class="error" id="error-message"></div>
     </div>
@@ -85,16 +88,19 @@
     <script>
         const shortenButton = document.getElementById('shorten-button');
         const urlInput = document.getElementById('url-input');
+        const redirectInput = document.getElementById('redirect-input');
+        const cookieExpirationInput = document.getElementById('cookie-expiration');
         const shortenedLinkDiv = document.getElementById('shortened-link');
         const errorMessageDiv = document.getElementById('error-message');
+        const clearCookiesButton = document.getElementById('clear-cookies-button');
 
         // Total number of URLs stored
         let urlCounter = 0;
 
         // Function to create cookies
-        function setCookie(name, value, days) {
+        function setCookie(name, value, hours) {
             const d = new Date();
-            d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+            d.setTime(d.getTime() + (hours * 60 * 60 * 1000));
             const expires = "expires=" + d.toUTCString();
             document.cookie = name + "=" + value + ";" + expires + ";path=/";
         }
@@ -111,29 +117,66 @@
             return null;
         }
 
+        // Function to delete all cookies related to this site
+        function clearCookies() {
+            const cookieValue = getCookie('urlMappings');
+            if (cookieValue) {
+                const mappings = JSON.parse(cookieValue);
+                for (const key in mappings) {
+                    document.cookie = key + '=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+                }
+                document.cookie = 'urlMappings=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/';
+                alert('All cookies cleared.');
+            } else {
+                alert('No cookies to clear.');
+            }
+            shortenedLinkDiv.innerHTML = '';
+            urlInput.value = '';
+            redirectInput.value = '';
+            cookieExpirationInput.value = '';
+        }
+
         // Function to handle URL shortening
         function handleShortenUrl() {
-            const url = urlInput.value.trim();
-            if (url === '' || !isValidUrl(url)) {
-                errorMessageDiv.textContent = 'Please enter a valid URL.';
+            const originalUrl = urlInput.value.trim();
+            const redirectTo = redirectInput.value.trim();
+            const expirationHours = parseInt(cookieExpirationInput.value.trim());
+
+            if (originalUrl === '' || !isValidUrl(originalUrl)) {
+                errorMessageDiv.textContent = 'Please enter a valid original URL.';
                 shortenedLinkDiv.innerHTML = '';
                 return;
             }
+
+            if (redirectTo === '' || !isValidUrl(redirectTo)) {
+                errorMessageDiv.textContent = 'Please enter a valid redirect URL.';
+                shortenedLinkDiv.innerHTML = '';
+                return;
+            }
+
+            if (isNaN(expirationHours) || expirationHours <= 0 || expirationHours > 72) {
+                errorMessageDiv.textContent = 'Please enter a valid number of hours for cookie expiration (up to 72).';
+                shortenedLinkDiv.innerHTML = '';
+                return;
+            }
+
             errorMessageDiv.textContent = '';
 
             // Generate a unique identifier for each URL
             const urlId = `url_${urlCounter++}`;
             const cookieValue = getCookie('urlMappings') || '';
             const mappings = cookieValue ? JSON.parse(cookieValue) : {};
-            mappings[urlId] = url;
+            mappings[originalUrl] = { redirect: redirectTo, id: urlId };
 
             // Set the updated mappings in cookies
-            setCookie('urlMappings', JSON.stringify(mappings), 30); // Store for 30 days
+            setCookie('urlMappings', JSON.stringify(mappings), expirationHours); // Store for specified hours
 
             // Show the result URL (it will be a fixed URL)
-            const shortUrl = `https://4rge.github.io/shortbread`;
+            const shortUrl = `https://4rge.github.io/shortbread?url=${urlId}`;
             shortenedLinkDiv.innerHTML = `<a href="${shortUrl}" target="_blank">${shortUrl}</a>`;
             urlInput.value = '';
+            redirectInput.value = '';
+            cookieExpirationInput.value = '';
         }
 
         // Simple URL validation
@@ -144,16 +187,23 @@
 
         // Event listener for button click
         shortenButton.addEventListener('click', handleShortenUrl);
+        clearCookiesButton.addEventListener('click', clearCookies);
 
         // Function to handle redirection logic
         function redirectUser() {
-            const cookieValue = getCookie('urlMappings');
-            const mappings = cookieValue ? JSON.parse(cookieValue) : {};
-            const urlArray = Object.values(mappings);
-
-            // Automatically redirect to the most recent URL if any exists
-            if (urlArray.length > 0) {
-                window.location.href = urlArray[urlArray.length - 1]; // Redirect to the latest stored URL
+            const params = new URLSearchParams(window.location.search);
+            const urlId = params.get('url');
+            if (urlId) {
+                const cookieValue = getCookie('urlMappings');
+                const mappings = cookieValue ? JSON.parse(cookieValue) : {};
+                
+                // Redirect to the URL corresponding to the id
+                for (const [key, value] of Object.entries(mappings)) {
+                    if (value.id === urlId) {
+                        window.location.href = value.redirect; // Redirect to the target URL
+                        break;
+                    }
+                }
             }
         }
 
